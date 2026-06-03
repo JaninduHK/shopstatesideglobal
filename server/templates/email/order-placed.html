@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><title>Order confirmed</title></head>
+  <body style="margin:0;padding:0;background:#0a0a0a;color:#f5f5f0;font-family:'Inter',Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a;padding:40px 20px;">
+      <tr><td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#111111;border:1px solid #2a2a2a;">
+          <tr><td style="padding:32px 40px 16px;border-bottom:1px solid #2a2a2a;">
+            <span style="font-family:Georgia,serif;font-size:28px;letter-spacing:.08em;color:#c9a96e;">STATE&nbsp;SIDE&nbsp;GLOBAL</span>
+          </td></tr>
+          <tr><td style="padding:40px;">
+            <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-weight:400;font-size:32px;">Order confirmed.</h1>
+            <p style="margin:0 0 24px;color:#a0a0a0;line-height:1.6;">
+              {{firstName}}, thank you. We've received your order and are preparing it for dispatch.
+            </p>
+            <table role="presentation" width="100%" style="border-top:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a;margin:24px 0;">
+              <tr>
+                <td style="padding:14px 0;color:#a0a0a0;font-size:14px;">Order</td>
+                <td style="padding:14px 0;color:#f5f5f0;font-size:14px;text-align:right;font-family:monospace;">{{orderNumber}}</td>
+              </tr>
+              <tr>
+                <td style="padding:14px 0;color:#a0a0a0;font-size:14px;border-top:1px solid #2a2a2a;">Items</td>
+                <td style="padding:14px 0;color:#f5f5f0;font-size:14px;text-align:right;border-top:1px solid #2a2a2a;">{{itemCount}}</td>
+              </tr>
+              <tr>
+                <td style="padding:14px 0;color:#a0a0a0;font-size:14px;border-top:1px solid #2a2a2a;">Total</td>
+                <td style="padding:14px 0;color:#c9a96e;font-size:14px;text-align:right;border-top:1px solid #2a2a2a;">{{total}}</td>
+              </tr>
+            </table>
+            <p style="margin:24px 0;">
+              <a href="{{ordersUrl}}" style="display:inline-block;padding:14px 32px;background:#c9a96e;color:#0a0a0a;text-decoration:none;font-weight:600;letter-spacing:.06em;">VIEW ORDER</a>
+            </p>
+          </td></tr>
+          <tr><td style="padding:24px 40px;border-top:1px solid #2a2a2a;color:#666666;font-size:12px;">
+            <a href="{{clientUrl}}" style="color:#c9a96e;text-decoration:none;">statesideglobal.com</a>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

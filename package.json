@@ -1,0 +1,31 @@
+{
+  "name": "state-side-global",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Luxury MERN e-commerce platform — membership-gated, Nigerian Naira via Paystack.",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:server dev:client",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build:client": "npm run build --workspace=client",
+    "seed": "npm run seed --workspace=server",
+    "test": "npm-run-all --parallel test:server test:client",
+    "test:server": "npm test --workspace=server",
+    "test:client": "npm test --workspace=client",
+    "lint": "npm-run-all --parallel lint:server lint:client",
+    "lint:server": "npm run lint --workspace=server",
+    "lint:client": "npm run lint --workspace=client"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

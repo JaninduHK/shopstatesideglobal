@@ -1,0 +1,32 @@
+// All monetary values stored as integer KOBO (1 NGN = 100 kobo).
+// Display layer converts to ₦.
+
+export const KOBO_PER_NAIRA = 100;
+
+export const PRICING_DEFAULTS = {
+  MEMBERSHIP_BASIC: 20000 * KOBO_PER_NAIRA,
+  ADDON_1: 20000 * KOBO_PER_NAIRA,
+  ADDON_2: 20000 * KOBO_PER_NAIRA,
+  SPECIAL_REQUEST_FEE: 30000 * KOBO_PER_NAIRA,
+};
+
+export const CURRENCY = 'NGN';
+export const CURRENCY_SYMBOL = '₦';
+
+export const TOKEN_TTL = {
+  ACCESS: '15m',
+  REFRESH: '7d',
+  EMAIL_VERIFY_HOURS: 24,
+  PASSWORD_RESET_HOURS: 1,
+  EMAIL_SUBSCRIBE_CONFIRM_HOURS: 24,
+};
+
+export const PAGINATION = {
+  MEMBER_DEFAULT_LIMIT: 24,
+  MEMBER_MAX_LIMIT: 100,
+  ADMIN_DEFAULT_LIMIT: 50,
+  ADMIN_MAX_LIMIT: 200,
+};
+
+export const ORDER_NUMBER_PREFIX = 'LUX';
+export const REQUEST_NUMBER_PREFIX = 'SPR';
