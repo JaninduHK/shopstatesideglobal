@@ -12,6 +12,9 @@ if (env.email.sendgridKey) {
   sgMail.setApiKey(env.email.sendgridKey);
 }
 
+// Active provider: Brevo takes precedence, then SendGrid, otherwise mock.
+const provider = env.email.brevoApiKey ? 'brevo' : env.email.sendgridKey ? 'sendgrid' : null;
+
 const templateCache = new Map();
 
 async function loadTemplate(name) {
@@ -36,9 +39,44 @@ function stripHtml(html) {
     .trim();
 }
 
+// Send through Brevo's transactional email HTTP API (Node 20 has global fetch).
+async function sendViaBrevo({ to, subject, html, text }) {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env.email.brevoApiKey,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { email: env.email.from, name: env.email.fromName },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Brevo send failed (${res.status}): ${body}`);
+  }
+  return { sent: true };
+}
+
+async function sendViaSendgrid({ to, subject, html, text }) {
+  await sgMail.send({
+    to,
+    from: { email: env.email.from, name: env.email.fromName },
+    subject,
+    html,
+    text,
+  });
+  return { sent: true };
+}
+
 /**
- * Sends a transactional email.
- * In dev (no SENDGRID_API_KEY) it logs the email to console instead.
+ * Sends a transactional email via the configured provider (Brevo or SendGrid).
+ * With no provider key set it logs the email instead of sending (dev/mock).
  */
 export async function sendEmail({ to, subject, template, vars = {} }) {
   const html = render(await loadTemplate(template), {
@@ -48,7 +86,7 @@ export async function sendEmail({ to, subject, template, vars = {} }) {
   });
   const text = stripHtml(html);
 
-  if (!env.email.sendgridKey) {
+  if (!provider) {
     logger.info(`[email:dev] to=${to} subject="${subject}" template=${template}`);
     if (!env.isProd && !env.isTest) {
       logger.debug(`[email:dev:body]\n${text}`);
@@ -56,12 +94,6 @@ export async function sendEmail({ to, subject, template, vars = {} }) {
     return { mocked: true };
   }
 
-  await sgMail.send({
-    to,
-    from: { email: env.email.from, name: env.email.fromName },
-    subject,
-    html,
-    text,
-  });
-  return { sent: true };
+  if (provider === 'brevo') return sendViaBrevo({ to, subject, html, text });
+  return sendViaSendgrid({ to, subject, html, text });
 }
