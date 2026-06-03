@@ -1,0 +1,74 @@
+# State Side Global — production stack
+#   web   : Caddy (TLS + static SPA + /api reverse proxy)   [public: 80/443]
+#   server: Express API                                      [internal only]
+#   mongo : MongoDB with persistent volume                   [internal only]
+#
+# Usage:
+#   cp .env.example .env        # then fill in real values (.env is gitignored)
+#   docker compose up -d --build
+#
+# The single `.env` file is read by `server` (env_file) AND used for ${VAR}
+# substitution below (mongo credentials + client build args). Compose only
+# auto-loads a file named exactly `.env`, so we standardize on that.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # No `ports:` — MongoDB is never exposed to the public internet.
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - internal
+    # No `ports:` — only Caddy reaches the API, over the internal network.
+
+  web:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      args:
+        VITE_API_URL: https://shopstatesideglobal.com/api/v1
+        VITE_PAYSTACK_PUBLIC_KEY: ${VITE_PAYSTACK_PUBLIC_KEY}
+        VITE_CLOUDINARY_CLOUD_NAME: ${VITE_CLOUDINARY_CLOUD_NAME}
+        VITE_CLOUDINARY_UPLOAD_PRESET: ${VITE_CLOUDINARY_UPLOAD_PRESET}
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data      # persisted TLS certificates (do not delete)
+      - caddy_config:/config
+    networks:
+      - internal
+
+volumes:
+  mongo_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

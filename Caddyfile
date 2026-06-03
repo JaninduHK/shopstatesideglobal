@@ -1,0 +1,21 @@
+# Redirect www -> apex
+www.shopstatesideglobal.com {
+	redir https://shopstatesideglobal.com{uri} permanent
+}
+
+shopstatesideglobal.com {
+	encode zstd gzip
+
+	# API + health check -> Express server container (same origin, so auth cookies work).
+	@api path /api/* /health
+	handle @api {
+		reverse_proxy server:4000
+	}
+
+	# Everything else -> the React SPA (history-mode fallback to index.html).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
