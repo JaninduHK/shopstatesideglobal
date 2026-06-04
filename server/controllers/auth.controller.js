@@ -12,6 +12,7 @@ import {
 } from '../services/jwt.service.js';
 import { sendEmail } from '../services/email.service.js';
 import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 import { TOKEN_TTL } from '@ssg/shared/constants';
 
 const REFRESH_COOKIE = 'refreshToken';
@@ -46,19 +47,30 @@ export const register = catchAsync(async (req, res) => {
       : { subscribed: false },
   });
 
-  await sendEmail({
-    to: user.email,
-    subject: 'Verify your email — State Side Global',
-    template: 'verify-email',
-    vars: {
-      firstName: user.firstName,
-      verifyUrl: `${env.clientUrl}/auth/verify-email/${verifyToken}`,
-    },
-  });
+  // Email sending must not block (or fail) registration — the account is already
+  // created. If the provider is misconfigured/down we log it; the user can request
+  // a resend later. Otherwise a mail outage would 500 signups and orphan accounts.
+  let emailSent = true;
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Verify your email — State Side Global',
+      template: 'verify-email',
+      vars: {
+        firstName: user.firstName,
+        verifyUrl: `${env.clientUrl}/auth/verify-email/${verifyToken}`,
+      },
+    });
+  } catch (err) {
+    emailSent = false;
+    logger.error(`Registration succeeded but verification email failed for ${user.email}: ${err.message}`);
+  }
 
   return created(res, {
     user: { id: user._id, email: user.email, firstName: user.firstName },
-    message: 'Verification email sent',
+    message: emailSent
+      ? 'Verification email sent'
+      : 'Account created. We could not send the verification email — please request a new one shortly.',
   });
 });
 
