@@ -48,7 +48,7 @@ export const createProductSchema = Joi.object({
   originalRetailPrice: Joi.number().integer().min(0),
   discountPrice: Joi.number().integer().min(0),
   discountEnds: Joi.date(),
-  sku: Joi.string().trim(),
+  sku: Joi.string().trim().allow(''),
   condition: Joi.string().valid(...Object.values(PRODUCT_CONDITION)).required(),
   quantity: Joi.number().integer().min(0).default(1),
   images: Joi.array().items(imageSchema).default([]),
