@@ -1,19 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import sgMail from '@sendgrid/mail';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_DIR = path.join(__dirname, '..', 'templates', 'email');
 
-if (env.email.sendgridKey) {
-  sgMail.setApiKey(env.email.sendgridKey);
-}
-
-// Active provider: Brevo takes precedence, then SendGrid, otherwise mock.
-const provider = env.email.brevoApiKey ? 'brevo' : env.email.sendgridKey ? 'sendgrid' : null;
+// Mailjet is configured only when BOTH halves of its credential are present.
+// With neither set, emails are mocked (logged) instead of sent — handy for dev.
+const mailjetConfigured = Boolean(env.email.mailjetApiKey && env.email.mailjetSecretKey);
 
 const templateCache = new Map();
 
@@ -39,44 +35,49 @@ function stripHtml(html) {
     .trim();
 }
 
-// Send through Brevo's transactional email HTTP API (Node 20 has global fetch).
-async function sendViaBrevo({ to, subject, html, text }) {
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+// Mailjet transactional Send API v3.1 — Basic auth (apiKey:secretKey), Node 20 global fetch.
+async function sendViaMailjet({ to, subject, html, text }) {
+  const auth = Buffer.from(`${env.email.mailjetApiKey}:${env.email.mailjetSecretKey}`).toString('base64');
+  const res = await fetch('https://api.mailjet.com/v3.1/send', {
     method: 'POST',
     headers: {
-      'api-key': env.email.brevoApiKey,
+      Authorization: `Basic ${auth}`,
       'content-type': 'application/json',
-      accept: 'application/json',
     },
     body: JSON.stringify({
-      sender: { email: env.email.from, name: env.email.fromName },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-      textContent: text,
+      Messages: [
+        {
+          From: { Email: env.email.from, Name: env.email.fromName },
+          To: [{ Email: to }],
+          Subject: subject,
+          TextPart: text,
+          HTMLPart: html,
+        },
+      ],
     }),
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Brevo send failed (${res.status}): ${body}`);
+    throw new Error(`Mailjet send failed (${res.status}): ${body}`);
   }
   return { sent: true };
 }
 
-async function sendViaSendgrid({ to, subject, html, text }) {
-  await sgMail.send({
-    to,
-    from: { email: env.email.from, name: env.email.fromName },
-    subject,
-    html,
-    text,
-  });
-  return { sent: true };
+// Single delivery path used by both the template-based and raw-HTML senders.
+async function deliver({ to, subject, html, text }) {
+  if (!mailjetConfigured) {
+    logger.info(`[email:dev] to=${to} subject="${subject}"`);
+    if (!env.isProd && !env.isTest) {
+      logger.debug(`[email:dev:body]\n${text}`);
+    }
+    return { mocked: true };
+  }
+  return sendViaMailjet({ to, subject, html, text });
 }
 
 /**
- * Sends a transactional email via the configured provider (Brevo or SendGrid).
- * With no provider key set it logs the email instead of sending (dev/mock).
+ * Sends a transactional email rendered from an HTML template file.
+ * With Mailjet not configured it logs the email instead of sending (dev/mock).
  */
 export async function sendEmail({ to, subject, template, vars = {} }) {
   const html = render(await loadTemplate(template), {
@@ -85,15 +86,12 @@ export async function sendEmail({ to, subject, template, vars = {} }) {
     clientUrl: env.clientUrl,
   });
   const text = stripHtml(html);
+  return deliver({ to, subject, html, text });
+}
 
-  if (!provider) {
-    logger.info(`[email:dev] to=${to} subject="${subject}" template=${template}`);
-    if (!env.isProd && !env.isTest) {
-      logger.debug(`[email:dev:body]\n${text}`);
-    }
-    return { mocked: true };
-  }
-
-  if (provider === 'brevo') return sendViaBrevo({ to, subject, html, text });
-  return sendViaSendgrid({ to, subject, html, text });
+/**
+ * Sends an email from pre-rendered HTML (no template file) — e.g. admin one-off messages.
+ */
+export async function sendRawEmail({ to, subject, html, text }) {
+  return deliver({ to, subject, html, text: text ?? stripHtml(html) });
 }

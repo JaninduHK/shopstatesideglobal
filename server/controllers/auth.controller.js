@@ -164,15 +164,21 @@ export const forgotPassword = catchAsync(async (req, res) => {
     user.passwordResetExpires = new Date(Date.now() + TOKEN_TTL.PASSWORD_RESET_HOURS * 3600_000);
     await user.save();
 
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your password — State Side Global',
-      template: 'password-reset',
-      vars: {
-        firstName: user.firstName,
-        resetUrl: `${env.clientUrl}/auth/reset-password/${resetToken}`,
-      },
-    });
+    // Never let a mail failure 500 this endpoint — that would both break UX and
+    // leak which emails exist (timing/status). Log and still return success.
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your password — State Side Global',
+        template: 'password-reset',
+        vars: {
+          firstName: user.firstName,
+          resetUrl: `${env.clientUrl}/auth/reset-password/${resetToken}`,
+        },
+      });
+    } catch (err) {
+      logger.error(`Password reset email failed for ${user.email}: ${err.message}`);
+    }
   }
 
   return ok(res, { success: true });

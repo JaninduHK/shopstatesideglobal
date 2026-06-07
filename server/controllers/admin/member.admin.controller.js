@@ -118,29 +118,10 @@ export const adminSendDirectEmail = catchAsync(async (req, res) => {
   </table>
 </body></html>`;
 
-  // sendEmail expects a template file — bypass by calling SendGrid directly here would mean
-  // duplicating logic. Simpler: write an inline render path via a small helper.
-  // For now, accept the limitation and send via the file-based path using a generic template if available;
-  // otherwise log + use ad-hoc nodemailer in dev. To avoid creating yet another template file just for this,
-  // we'll write the HTML to a transient template-less email by invoking sendgrid directly only if configured.
-  // Pragmatic fallback: stash subject/body in adminNote-style logging and notify admin in response.
-
-  const { env } = await import('../../config/env.js');
-  if (!env.email.sendgridKey) {
-    // Dev mode — log and pretend
-    const { logger } = await import('../../utils/logger.js');
-    logger.info(`[direct-email:dev] to=${member.email} subject="${subject}"`);
-  } else {
-    const sgMail = (await import('@sendgrid/mail')).default;
-    sgMail.setApiKey(env.email.sendgridKey);
-    await sgMail.send({
-      to: member.email,
-      from: { email: env.email.from, name: env.email.fromName },
-      subject,
-      html,
-      text: body,
-    });
-  }
+  // Raw-HTML send (no template file). Routes through the same provider/mock path
+  // as all other mail, so it works with Mailjet in prod and logs in dev.
+  const { sendRawEmail } = await import('../../services/email.service.js');
+  await sendRawEmail({ to: member.email, subject, html, text: body });
 
   return ok(res, { sent: true });
 });

@@ -57,8 +57,8 @@ export const env = {
   },
 
   email: {
-    brevoApiKey: optional('BREVO_API_KEY'),
-    sendgridKey: optional('SENDGRID_API_KEY'),
+    mailjetApiKey: optional('MAILJET_API_KEY'),
+    mailjetSecretKey: optional('MAILJET_SECRET_KEY'),
     from: optional('EMAIL_FROM', 'noreply@statesideglobal.com'),
     fromName: optional('EMAIL_FROM_NAME', 'State Side Global'),
   },
