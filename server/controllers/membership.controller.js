@@ -206,34 +206,40 @@ async function applyVerifiedCharge(tx, user) {
   }
   await user.save();
 
-  const addonMeta = await getAddonMeta();
-  if (tx.type === MEMBERSHIP_TX_TYPE.ADDON) {
-    await sendEmail({
-      to: user.email,
-      subject: 'Add-on unlocked — State Side Global',
-      template: 'addon-receipt',
-      vars: {
-        firstName: user.firstName,
-        addonName: tx.addOns[0] === ADDON.ADDON1 ? addonMeta.addon1.name : addonMeta.addon2.name,
-        amount: formatNaira(tx.amount),
-        reference: tx.paystackReference,
-        shopUrl: `${env.clientUrl}/member/shop`,
-      },
-    });
-  } else {
-    await sendEmail({
-      to: user.email,
-      subject: 'Welcome to the Inner Circle',
-      template: 'membership-receipt',
-      vars: {
-        firstName: user.firstName,
-        planLabel: planLabel(user.membership.plan, addonMeta),
-        amount: formatNaira(tx.amount),
-        endDate: user.membership.endDate.toDateString(),
-        reference: tx.paystackReference,
-        shopUrl: `${env.clientUrl}/member`,
-      },
-    });
+  // Receipt email is best-effort: the charge is already verified, applied, and saved
+  // above. A mail failure must never make a successful payment look failed to the client.
+  try {
+    const addonMeta = await getAddonMeta();
+    if (tx.type === MEMBERSHIP_TX_TYPE.ADDON) {
+      await sendEmail({
+        to: user.email,
+        subject: 'Add-on unlocked — State Side Global',
+        template: 'addon-receipt',
+        vars: {
+          firstName: user.firstName,
+          addonName: tx.addOns[0] === ADDON.ADDON1 ? addonMeta.addon1.name : addonMeta.addon2.name,
+          amount: formatNaira(tx.amount),
+          reference: tx.paystackReference,
+          shopUrl: `${env.clientUrl}/member/shop`,
+        },
+      });
+    } else {
+      await sendEmail({
+        to: user.email,
+        subject: 'Welcome to the Inner Circle',
+        template: 'membership-receipt',
+        vars: {
+          firstName: user.firstName,
+          planLabel: planLabel(user.membership.plan, addonMeta),
+          amount: formatNaira(tx.amount),
+          endDate: user.membership.endDate.toDateString(),
+          reference: tx.paystackReference,
+          shopUrl: `${env.clientUrl}/member`,
+        },
+      });
+    }
+  } catch (err) {
+    logger.error(`Membership receipt email failed for ${user.email} (${tx.paystackReference}): ${err.message}`);
   }
 }
 
